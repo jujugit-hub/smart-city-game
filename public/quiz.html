@@ -3,24 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css.css"> <!-- Ton fichier CSS existant -->
-
+    <link rel="stylesheet" href="css.css">
 </head>
 <body>
 
     <h1>QUIZ TIME</h1>
+    
+    <div id="quizInfo" style="display: flex; justify-content: space-between; margin: 10px 20px; padding: 10px 20px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+        <div>Time: <span id="timer">30</span>s</div>
+    </div>
+
     <h2 id="questionCounter">Question 1</h2>
 
-    <form class="quiz-form" id="quizForm">
-        <div id="questionText"></div>
-        <div class="quiz-grid" id="optionsContainer"></div>
-        <br>
-        <button type="button" id="validateBtn">Valider</button>
-    </form>
+    <div id="questionText"></div>
+    
+    <div class="quiz-grid" id="optionsContainer"></div>
+    
+    <button type="button" id="validateBtn" style="align-items: center;">CONFIRM</button>
 
     <div id="resultMessage" class="result-area"></div>
+    
+    <script src="/socket.io/socket.io.js"></script>
     <script src="fichiers_java/quiz.js"></script>
-
+    <script src="fichiers_java/script.js"></script>
 
 </body>
 </html>

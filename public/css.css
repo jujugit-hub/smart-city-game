@@ -110,6 +110,11 @@ button {
     align-self: center;
 }
 
+#validateBtn {
+    display: block;
+    margin: 20px auto;
+}
+
 /*SURFACE INPUTS*/
 input {
     font-family: Helvetica, Arial, sans-serif;

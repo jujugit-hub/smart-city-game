@@ -1,77 +1,23 @@
-// ---------- BASE DE DONNÉES DU QUIZ ----------
-const questions = [
-    {
-        text: "What percentage of passengers experienced delays of more than 30 minutes?",
-        options: ["11%", "17%", "21%", "27%"],
-        correct: [2],
-        maxChoices: 4
-    },
-    {
-        text: "What standards should a shop meet ?",
-        options: ["work with local producers exclusively", "be close to housings", "be huge in order to better manage large numbers of people", "prioritise seasonal and local products"],
-        correct: [0, 2],
-        maxChoices: 4
-    },
-    {
-        text: "Which company is using the heat produced by it's AI to heat homes in switzerland ?",
-        options: ["Riot company", "Microsoft", "Google", "Infomaniak"],
-        correct: [3],
-        maxChoices: 4
-    }/*,
-    {
-        text: "Question 4 ?",
-        options: ["answer1", "answer2", "answer3", "answer4"],
-        correct: [3],
-        maxChoices: 1
-    },
-    {
-        text: "Question 5 ?",
-        options: ["answer1", "answer2", "answer3", "answer4"],
-        correct: [3],
-        maxChoices: 1
-    },
-    {
-        text: "Question 6 ?",
-        options: ["answer1", "answer2", "answer3", "answer4"],
-        correct: [3],
-        maxChoices: 1
-    },
-    {
-        text: "Question 7 ?",
-        options: ["answer1", "answer2", "answer3", "answer4"],
-        correct: [3],
-        maxChoices: 1
-    },
-    {
-        text: "Question 8 ?",
-        options: ["answer1", "answer2", "answer3", "answer4"],
-        correct: [3],
-        maxChoices: 1
-    },
-    {
-        text: "Question 9 ?",
-        options: ["answer1", "answer2", "answer3", "answer4"],
-        correct: [3],
-        maxChoices: 1
-    },
-    {
-        text: "Question 10 ?",
-        options: ["answer1", "answer2", "answer3", "answer4"],
-        correct: [3],
-        maxChoices: 1
-    }*/
-];
-
+// ---------- QUIZ COLLABORATIF - CORRECTION FINALE UNIQUEMENT ----------
 let currentIndex = 0;
-let userAnswers = new Array(questions.length).fill(null).map(() => []);
+let questions = [];
+let totalQuestions = 0;
+let currentQuestionNumber = 0;
+let timeLeft = 30;
+let timerInterval = null;
+let answerValidated = false;
+let teamAnswers = [];
 
 const questionCounterElem = document.getElementById("questionCounter");
 const questionTextElem = document.getElementById("questionText");
 const optionsContainer = document.getElementById("optionsContainer");
 const validateBtn = document.getElementById("validateBtn");
 const resultMessageDiv = document.getElementById("resultMessage");
+const timerDisplay = document.getElementById("timer");
 
-// ----- Fonctions utilitaires -----
+const socket = io();
+
+// ----- Fonctions -----
 function getSelectedIndices() {
     const checkboxes = document.querySelectorAll('#optionsContainer input[type="checkbox"]');
     const selected = [];
@@ -81,19 +27,20 @@ function getSelectedIndices() {
     return selected;
 }
 
-function saveCurrentAnswers() {
-    userAnswers[currentIndex] = getSelectedIndices();
+function updateTeamAnswers() {
+    if (answerValidated) return;
+    teamAnswers = getSelectedIndices();
+    socket.emit("updateTeamAnswer", { answers: teamAnswers });
 }
 
 function setLimitMessage(limit) {
     if (limit) {
-        resultMessageDiv.innerHTML = `⚠️ Tu ne peux sélectionner que ${limit} réponse(s) maximum.`;
+        resultMessageDiv.innerHTML = '<p>⚠️ Only ${limit} option(s) can be selected</p>';
     } else {
         resultMessageDiv.innerHTML = "";
     }
 }
 
-// Animation sur le bouton
 function animateButton() {
     validateBtn.classList.add('shake');
     setTimeout(() => {
@@ -101,23 +48,54 @@ function animateButton() {
     }, 500);
 }
 
-// Gestion de la limitation du nombre de cases
+function disableInputs(disabled) {
+    const checkboxes = document.querySelectorAll('#optionsContainer input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.disabled = disabled;
+    });
+    validateBtn.disabled = disabled;
+}
+
+function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    
+    timerInterval = setInterval(() => {
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+        } else {
+            timeLeft--;
+            if (timerDisplay) timerDisplay.textContent = timeLeft;
+            
+            if (timeLeft === 5) {
+                timerDisplay.style.color = "#ff6b6b";
+                timerDisplay.style.fontSize = "1.3em";
+            }
+        }
+    }, 1000);
+}
+
 function attachLimitHandlers() {
     const q = questions[currentIndex];
+    if (!q) return;
+    
     const maxChoices = q.maxChoices;
     if (!maxChoices || maxChoices <= 0) return;
 
     const checkboxes = document.querySelectorAll('#optionsContainer input[type="checkbox"]');
     const handler = function(event) {
+        if (answerValidated) {
+            event.preventDefault();
+            return;
+        }
         const cb = event.target;
         const currentlyChecked = getSelectedIndices().length;
         if (!cb.checked && currentlyChecked >= maxChoices) {
             event.preventDefault();
             setLimitMessage(maxChoices);
-            animateButton(); // Animation aussi quand on tente de dépasser la limite
+            animateButton();
         } else {
             setLimitMessage(null);
-            setTimeout(() => saveCurrentAnswers(), 0);
+            setTimeout(() => updateTeamAnswers(), 0);
         }
     };
     checkboxes.forEach(cb => {
@@ -130,76 +108,227 @@ function displayCurrentQuestion() {
     const q = questions[currentIndex];
     if (!q) return;
 
-    questionCounterElem.textContent = `Question ${currentIndex + 1} / ${questions.length}`;
-    questionTextElem.innerHTML = `<p>${q.text}</p>`;
+    if (questionCounterElem) {
+        questionCounterElem.textContent = `Question ${currentQuestionNumber} / ${totalQuestions}`;
+    }
+
+    if (questionTextElem) {
+        questionTextElem.innerHTML = `<p>${q.text}</p>`;
+    }
 
     let optionsHtml = "";
-    const savedChecks = userAnswers[currentIndex] || [];
     q.options.forEach((opt, idx) => {
-        const optionId = `opt_${currentIndex}_${idx}`;
-        const isChecked = savedChecks.includes(idx);
+        const optionId = `opt_${idx}`;
+        const isChecked = teamAnswers.includes(idx);
         optionsHtml += `
             <input type="checkbox" id="${optionId}" name="questionOption" value="${idx}" ${isChecked ? 'checked' : ''}>
             <label for="${optionId}" class="quiz-card">${opt}</label>
         `;
     });
-    optionsContainer.innerHTML = optionsHtml;
-    resultMessageDiv.innerHTML = "";
+    
+    if (optionsContainer) {
+        optionsContainer.innerHTML = optionsHtml;
+    }
+    
+    if (resultMessageDiv) {
+        resultMessageDiv.innerHTML = "";
+    }
+    
+    answerValidated = false;
+    
+    if (validateBtn) {
+        validateBtn.style.display = "block";
+        validateBtn.disabled = false;
+        validateBtn.textContent = "CONFIRM";
+    }
+    
+    if (timerDisplay) {
+        timerDisplay.style.color = "";
+        timerDisplay.style.fontSize = "";
+    }
 
     attachLimitHandlers();
+    
+    const checkboxes = document.querySelectorAll('#optionsContainer input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', () => updateTeamAnswers());
+    });
+    
+    timeLeft = 30;
+    if (timerDisplay) timerDisplay.textContent = timeLeft;
+    startTimer();
+}
 
-    if (!questions[currentIndex].maxChoices) {
-        const checkboxes = document.querySelectorAll('#optionsContainer input[type="checkbox"]');
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => saveCurrentAnswers());
+function showFinalCorrection(data) {
+    if (timerInterval) clearInterval(timerInterval);
+    
+    let resultsHtml = `
+        <div style="padding: 20px; max-height: 80vh; overflow-y: auto;">
+            <h1 style="font-size: 36px; margin-bottom: 20px;">FINAL SCORE</h1>
+            <h2 style="font-size: 28px; margin-bottom: 30px;">${data.score} / ${data.total}</h2>
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+    `;
+    
+    data.results.forEach((result, idx) => {
+        const isCorrect = result.isCorrect;
+        resultsHtml += `
+            <div style="background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; text-align: left;">
+                <h3 style="margin-bottom: 15px;">
+                    ${isCorrect ? '✅' : '❌'} Question ${idx + 1}: ${result.questionText}
+                </h3>
+                <div style="margin: 15px 0;">
+                    <strong style="color: #F9A620;">Team's answer :</strong><br>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+        `;
+        
+        if (result.userAnswers.length === 0) {
+            resultsHtml += `<span style="background: #666; padding: 5px 15px; border-radius: 20px;">No answer</span>`;
+        } else {
+            result.userAnswers.forEach(answerIdx => {
+                resultsHtml += `<span style="background: #F9A620; padding: 5px 15px; border-radius: 20px;">${result.options[answerIdx]}</span>`;
+            });
+        }
+        
+        resultsHtml += `
+                    </div>
+                </div>
+                <div>
+                    <strong style="color: #F9A620;">Correct answer :</strong><br>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+        `;
+        
+        result.correctAnswers.forEach(correctIdx => {
+            resultsHtml += `<span style="background: #104911; padding: 5px 15px; border-radius: 20px;">${result.options[correctIdx]}</span>`;
+        });
+        
+        resultsHtml += `
+                    </div>
+                </div>
+                <p style="margin-top: 15px; font-size: 14px; color: #ddd;">
+                    💡 ${result.explanation}
+                </p>
+            </div>
+        `;
+    });
+    
+    resultsHtml += `
+            </div>
+            <button id="backToLobbyBtn" style="margin-top: 30px; padding: 12px 24px; font-size: 18px; background: #F9A620; border: none; border-radius: 10px; cursor: pointer;">
+                BACK TO LOBBY
+            </button>
+        </div>
+    `;
+    
+    if (questionTextElem) {
+        questionTextElem.innerHTML = resultsHtml;
+    }
+    
+    if (optionsContainer) {
+        optionsContainer.innerHTML = "";
+    }
+    
+    if (validateBtn) {
+        validateBtn.style.display = "none";
+    }
+    
+    if (questionCounterElem) {
+        questionCounterElem.style.display = "none";
+    }
+    
+    if (timerDisplay && timerDisplay.parentElement) {
+        timerDisplay.parentElement.style.display = "none";
+    }
+    
+    // Ajout de l'écouteur sur le bouton
+    const backBtn = document.getElementById("backToLobbyBtn");
+    if (backBtn) {
+        backBtn.addEventListener("click", () => {
+            socket.emit("endGame");
         });
     }
 }
 
-function computeScore() {
-    let score = 0;
-    for (let i = 0; i < questions.length; i++) {
-        const userSelected = userAnswers[i];
-        const correctIndices = questions[i].correct;
-        const isExactlyCorrect = 
-            userSelected.length === correctIndices.length &&
-            correctIndices.every(idx => userSelected.includes(idx));
-        if (isExactlyCorrect) score++;
-    }
-    return score;
-}
-
 function onValidate() {
-    // Vérifier qu'au moins une case est cochée
+    if (answerValidated) return;
+
     const selected = getSelectedIndices();
     if (selected.length === 0) {
-        // Afficher un message et lancer l'animation
-        validateBtn.classList.add("shake");
         animateButton();
+        if (resultMessageDiv) {
+            resultMessageDiv.innerHTML = "<p>⚠️ The team has to select at least one answer !</p>";
+        }
         return;
     }
 
-    // Sauvegarde
-    saveCurrentAnswers();
+    answerValidated = true;
+    disableInputs(true);
 
-    // Dernière question ?
-    if (currentIndex + 1 === questions.length) {
-        /*const score = computeScore();
-        questionTextElem.innerHTML = "<p>Quiz terminé !</p>";
-        optionsContainer.innerHTML = "";
-        validateBtn.style.display = "none";
-        resultMessageDiv.innerHTML = `🎉 Ton score : ${score} / ${questions.length} 🎉`;
-        questionCounterElem.textContent = "Résultat";
-        return;*/
-        window.location.href = "quizz.html";
-        return;
+    if (timerInterval) clearInterval(timerInterval);
+
+    socket.emit("validateTeamAnswerAndNext");
+
+    if (validateBtn) {
+        validateBtn.disabled = true;
     }
 
-    // Passer à la question suivante
-    currentIndex++;
-    displayCurrentQuestion();
+    if (resultMessageDiv) {
+        resultMessageDiv.innerHTML = "<p>Answer saved !</p>";
+    }
 }
 
+// ---------- Socket Events ----------
+socket.on("nextQuestion", (data) => {
+    console.log(`📥 Question ${data.questionNumber} reçue`);
+    currentIndex = data.index;
+    currentQuestionNumber = data.questionNumber;
+    teamAnswers = data.teamAnswers || [];
+    displayCurrentQuestion();
+});
+
+socket.on("startQuizGame", () => {
+    console.log("🎮 Démarrage du quiz collaboratif");
+    socket.emit("requestAllQuestions");
+});
+
+socket.on("allQuestions", (allQuestions) => {
+    questions = allQuestions;
+    totalQuestions = questions.length;
+    currentIndex = 0;
+    currentQuestionNumber = 1;
+    teamAnswers = [];
+    displayCurrentQuestion();
+});
+
+socket.on("teamAnswersUpdated", (data) => {
+    if (answerValidated) return;
+    
+    teamAnswers = data.teamAnswers;
+    
+    const checkboxes = document.querySelectorAll('#optionsContainer input[type="checkbox"]');
+    checkboxes.forEach((cb, idx) => {
+        cb.checked = teamAnswers.includes(parseInt(cb.value));
+    });
+});
+
+socket.on("answerValidated", (data) => {
+    console.log(`✅ Réponse validée pour la question ${data.questionIndex + 1}`);
+    if (resultMessageDiv && !answerValidated) {
+        resultMessageDiv.innerHTML = `Answer saved ! Question ${data.nextQuestionNumber} incoming...`;
+    }
+});
+
+socket.on("quizFinished", (data) => {
+    console.log("🏁 Quiz terminé, affichage de la correction finale");
+    showFinalCorrection(data);
+});
+
+socket.on("gameReset", () => {
+    window.location.href = "index.html";
+});
+
 // Initialisation
-displayCurrentQuestion();
-validateBtn.addEventListener("click", onValidate);
+if (validateBtn) {
+    validateBtn.addEventListener("click", onValidate);
+}
+
+socket.emit("startQuizGame");
