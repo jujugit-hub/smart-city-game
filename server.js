@@ -4,6 +4,7 @@ const http = require("http").createServer(app);
 const io = require("socket.io")(http);
 
 let gameStarted = false;
+let gameTimeout = null; 
 
 app.use(express.static("public"));
 
@@ -24,6 +25,41 @@ let buildings = [
   { id: 9, name: "Housing", unlocked: false, enigme: "Can you lift me up ?", answer: "cooperative"}
 ];
 
+function resetGame() {
+  console.log("🔥 reset game");
+
+  if (gameTimeout) {
+    clearTimeout(gameTimeout);
+    gameTimeout = null;
+  }
+
+  gameStarted = false;
+  players = [];
+  waitingPlayers = [];
+
+  buildings = buildings.map(b => ({
+    ...b,
+    unlocked: false
+  }));
+
+  if (quizState.timerTimeout) {
+    clearTimeout(quizState.timerTimeout);
+  }
+
+  quizState = {
+    isActive: false,
+    currentQuestionIndex: 0,
+    teamAnswers: [],
+    allAnswers: [],
+    quizStartTime: null,
+    questionStartTime: null,
+    timerTimeout: null
+  };
+
+  io.emit("updatePlayers", players);
+  io.emit("updateBuildings", buildings);
+  io.emit("gameReset");
+}
 // ---------- État du quiz collaboratif ----------
 let quizState = {
   isActive: false,
@@ -185,6 +221,11 @@ io.on("connection", (socket) => {
 
     gameStarted = true;
 
+    gameTimeout = setTimeout(() => {
+      console.log("⏰ Partie expirée après 45 minutes");
+      resetGame();
+    }, 45 * 60 * 1000);
+
     // 1. Envoyer "gameStarted" aux joueurs ayant rejoint
     players.forEach(p => {
       const playerSocket = io.sockets.sockets.get(p.id);
@@ -268,28 +309,7 @@ io.on("connection", (socket) => {
   });
   
   socket.on("endGame", () => {
-    console.log("🔥 reset game");
-    gameStarted = false;
-    players = [];
-    waitingPlayers = [];
-    buildings = buildings.map(b => ({
-      ...b,
-      unlocked: false
-    }));
-    
-    quizState = {
-      isActive: false,
-      currentQuestionIndex: 0,
-      teamAnswers: [],
-      allAnswers: [],
-      quizStartTime: null,
-      questionStartTime: null,
-      timerTimeout: null
-    };
-    
-    io.emit("updatePlayers", players);
-    io.emit("updateBuildings", buildings);
-    io.emit("gameReset");
+    resetGame();
   });
 
   socket.on("validateTeamAnswerAndNext", () => {
