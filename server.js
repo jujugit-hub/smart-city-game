@@ -3,6 +3,8 @@ const app = express();
 const http = require("http").createServer(app);
 const io = require("socket.io")(http);
 
+const WebSocket = require("ws");
+
 let gameStarted = false;
 let gameTimeout = null; 
 
@@ -24,6 +26,61 @@ let buildings = [
   { id: 8, name: "Sports complex", unlocked: false, enigme: "Take a look at our backs", answer: "sustainable"},
   { id: 9, name: "Housing", unlocked: false, enigme: "Can you lift me up ?", answer: "cooperative"}
 ];
+
+// =====================================================================
+// ---------- Gestion des LEDs des bâtiments (ESP32) ----------
+// =====================================================================
+// Pour chaque bâtiment (id 1 à 9), on garde la liste des joueurs (socket.id)
+// qui ont actuellement l'énigme ouverte.
+let openEnigmes = {};
+buildings.forEach(b => { openEnigmes[b.id] = new Set(); });
+
+// État LED pour chaque bâtiment, dans l'ordre des ids (1 -> index 0, ... 9 -> index 8)
+// '0' = éteint, '1' = clignote, '2' = allumé fixe
+function computeLedString() {
+  return buildings
+    .map(b => {
+      if (b.unlocked) return "2"; // énigme réussie -> allumé fixe
+      if (openEnigmes[b.id].size > 0) return "1"; // au moins un joueur dessus -> clignote
+      return "0"; // personne dessus et pas résolu -> éteint
+    })
+    .join("");
+}
+
+// ---------- Serveur WebSocket dédié à l'ESP32 ----------
+const wss = new WebSocket.Server({ server: http, path: "/esp32" });
+let esp32Clients = new Set();
+
+function broadcastLedStates() {
+  const ledString = computeLedString();
+  esp32Clients.forEach(ws => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(ledString);
+    }
+  });
+}
+
+wss.on("connection", (ws) => {
+  console.log("🔌 ESP32 connecté");
+  esp32Clients.add(ws);
+
+  // Envoie l'état actuel dès la connexion
+  ws.send(computeLedString());
+
+  ws.on("close", () => {
+    esp32Clients.delete(ws);
+    console.log("🔌 ESP32 déconnecté");
+  });
+
+  ws.on("error", () => {
+    esp32Clients.delete(ws);
+  });
+});
+
+// Remet toutes les énigmes ouvertes à zéro (appelé à la fin de partie)
+function resetOpenEnigmes() {
+  buildings.forEach(b => { openEnigmes[b.id] = new Set(); });
+}
 
 function resetGame() {
   console.log("🔥 reset game");
@@ -59,6 +116,10 @@ function resetGame() {
   io.emit("updatePlayers", players);
   io.emit("updateBuildings", buildings);
   io.emit("gameReset");
+
+    // Toutes les LEDs s'éteignent à la fin de la partie
+  resetOpenEnigmes();
+  broadcastLedStates();
 }
 // ---------- État du quiz collaboratif ----------
 let quizState = {
@@ -213,6 +274,15 @@ io.on("connection", (socket) => {
     players = players.filter(p => p.id !== socket.id);
     waitingPlayers = waitingPlayers.filter(w => w.id !== socket.id);
     io.emit("updatePlayers", players);
+
+    // Retire ce joueur de toutes les énigmes qu'il avait ouvertes
+    let ledsChanged = false;
+    buildings.forEach(b => {
+      if (openEnigmes[b.id].delete(socket.id)) {
+        ledsChanged = true;
+      }
+    });
+    if (ledsChanged) broadcastLedStates();
   });
 
   socket.on("startGame", () => {
@@ -249,10 +319,40 @@ io.on("connection", (socket) => {
     if (b) {
       b.unlocked = true;
       io.emit("updateBuildings", buildings);
+      
+      // L'énigme est résolue : plus personne n'est "dessus", la LED reste allumée fixe
+      if (openEnigmes[id]) {
+        openEnigmes[id].clear();
+      }
+      broadcastLedStates();
+    }
+  });
+
+    // Un joueur ouvre l'énigme d'un bâtiment -> la LED correspondante doit clignoter
+  socket.on("enigmeOpened", (id) => {
+    if (openEnigmes[id]) {
+      openEnigmes[id].add(socket.id);
+      broadcastLedStates();
+    }
+  });
+
+  // Un joueur ferme l'énigme sans la résoudre -> on le retire de la liste
+  socket.on("enigmeClosed", (id) => {
+    if (openEnigmes[id]) {
+      openEnigmes[id].delete(socket.id);
+      broadcastLedStates();
     }
   });
   
   socket.on("playerReady", () => {
+    // Les énigmes non résolues s'arrêtent : leur LED ne doit plus clignoter
+    buildings.forEach(b => {
+      if (!b.unlocked) {
+        openEnigmes[b.id].clear();
+      }
+    });
+    broadcastLedStates();
+
     // Envoi du quiz aux joueurs actifs
     io.emit("startQuiz");
     

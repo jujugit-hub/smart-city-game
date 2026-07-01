@@ -40,6 +40,9 @@ function openEnigme(building) {
   const modal = document.createElement("div");
   modal.classList.add("modal");
 
+  // Prévient le serveur que ce joueur est sur cette énigme -> LED du bâtiment clignote
+  socket.emit("enigmeOpened", building.id);
+
   const hasAudio = building.audioFile && building.audioFile !== "";
   
   modal.innerHTML = `
@@ -78,6 +81,8 @@ function openEnigme(building) {
           audio.currentTime = 0;
         }
       }
+      // Prévient le serveur que ce joueur a quitté l'énigme (LED s'éteint si plus personne dessus)
+      socket.emit("enigmeClosed", building.id);
       modal.remove();
   };
 

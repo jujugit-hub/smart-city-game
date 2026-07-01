@@ -823,3 +823,35 @@ header h2 {
 
     height: 480px;
 }
+
+strong{
+    font-weight: 600;
+    color: white;
+
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+
+    background: #10491166;
+    border-radius: 8px;
+    padding: 2px 6px;
+}
+
+ul{
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+li{
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(8px);
+
+    border-radius: 18px;
+    padding: 14px 18px;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,0.15),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+}
