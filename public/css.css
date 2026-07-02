@@ -938,3 +938,20 @@ li{
 .link-button:hover{
     opacity: 1;
 }
+
+.intro-modal .modal-content {
+    width: 85%;
+    max-width: 420px;
+    max-height: 70vh;
+}
+
+.intro-modal .modal-content {
+    overflow-y: auto;
+}
+
+.intro-modal .modal-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
