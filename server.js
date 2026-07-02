@@ -18,8 +18,8 @@ let buildings = [
     answer: "train", audioFile: "train_sound.mp3"},
   { id: 2, name: "Hospital", unlocked: false, enigme: "Find the hidden disease", 
     answer: "tuberculosis"},
-  { id: 3, name: "Town hall", unlocked: false, enigme:"Paris' most famous Anne (surname only)", answer:"hidalgo"},
-  { id: 4, name: "Schools", unlocked: false, enigme: "number of buildings * number of houses - number of railway stations", answer: "47"},
+  { id: 3, name: "Town hall", unlocked: false, enigme:"Unscramble: OEVT", answer:"vote"},
+  { id: 4, name: "Schools", unlocked: false, enigme: "Number of trees in the park * number of railway stations - total number of trees", answer: "-23"},
   { id: 5, name: "Parks", unlocked: false, enigme: "Who won the Noughts and Crosses (X/O)?", answer: "X"},
   { id: 6, name: "Shops", unlocked: false, enigme: "What is the city's main restaurant ?", answer: "pizzeria"},
   { id: 7, name: "Sharing areas", unlocked: false, enigme: "I am the only fruit here", answer: "tomato"},
@@ -108,6 +108,7 @@ function resetGame() {
     currentQuestionIndex: 0,
     teamAnswers: [],
     allAnswers: [],
+    questionScores: [],
     quizStartTime: null,
     questionStartTime: null,
     timerTimeout: null
@@ -127,6 +128,7 @@ let quizState = {
   currentQuestionIndex: 0,
   teamAnswers: [],
   allAnswers: [],
+  questionScores: [],
   quizStartTime: null,
   questionStartTime: null,
   timerTimeout: null
@@ -134,30 +136,139 @@ let quizState = {
 
 const quizQuestions = [
   {
-    text: "What percentage of passengers experienced delays of more than 30 minutes?",
-    options: ["11%", "17%", "21%", "27%"],
-    correct: [2],
-    maxChoices: 4,
-    explanation: "Selon l'étude, 21% des passagers ont subi un retard de plus de 30 minutes."
-  },
-  {
-    text: "What standards should a shop meet ?",
-    options: ["work with local producers exclusively", "be close to housings", "be huge in order to better manage large numbers of people", "prioritise seasonal and local products"],
-    correct: [0, 2],
-    maxChoices: 4,
-    explanation: "Les commerces devraient travailler avec des producteurs locaux et privilégier les produits de saison."
-  },
-  {
-    text: "Which company is using the heat produced by its AI to heat homes in Switzerland ?",
-    options: ["Riot company", "Microsoft", "Google", "Infomaniak"],
-    correct: [3],
-    maxChoices: 4,
-    explanation: "Infomaniak utilise la chaleur générée par son IA pour chauffer des logements en Suisse."
-  }
+  text: "Which ideas are part of a 15-minute city? (2)",
+  options: [
+    "Large free car parks",
+    "Most daily needs nearby",
+    "Less dependence on cars",
+    "Longer commutes"
+  ],
+  correct: [1,2],
+  maxChoices: 4,
+  explanation: "A 15-minute city lets people reach most daily needs on foot or by bike, reducing the need for cars.",
+  timed: true
+},
+{
+  text: "What is 'appropriate care'? (2)",
+  options: [
+    "Avoid unnecessary treatments",
+    "Close small hospitals",
+    "Reduce unnecessary prescriptions",
+    "Shorten every consultation"
+  ],
+  correct: [0,2],
+  maxChoices: 4,
+  explanation: "Appropriate care means avoiding unnecessary tests and prescriptions while maintaining high-quality healthcare.",
+  timed: true
+},
+{
+  text: "What is special about Infomaniak? (2)",
+  options: [
+    "It recovers data-centre heat",
+    "It powers electric buses",
+    "It heats nearby homes",
+    "It produces hydrogen"
+  ],
+  correct: [0,2],
+  maxChoices: 4,
+  explanation: "The Swiss company Infomaniak uses the waste heat from its data centre to heat nearby homes.",
+  timed: true
+},
+{
+  text: "Why are trees so valuable in cities? (2)",
+  options: [
+    "They produce electricity",
+    "They provide shade",
+    "They absorb CO₂",
+    "They reduce internet usage"
+  ],
+  correct: [1,2],
+  maxChoices: 4,
+  explanation: "Trees cool cities by providing shade while also absorbing CO₂ and improving air quality.",
+  timed: true
+},
+{
+  text: "Nordic schools are known for... (2)",
+  options: [
+    "More exams",
+    "Personalised learning",
+    "Greater school autonomy",
+    "Longer school days"
+  ],
+  correct: [1,2],
+  maxChoices: 4,
+  explanation: "Nordic education focuses on autonomy, cooperation and personalised learning.",
+  timed: true
+},
+{
+  text: "How do cooperative supermarkets reduce prices? (2)",
+  options: [
+    "Members volunteer a few hours",
+    "They only sell imported food",
+    "Customers become co-owners",
+    "They replace all cashiers"
+  ],
+  correct: [0,2],
+  maxChoices: 4,
+  explanation: "Members help run the supermarket and become co-owners, reducing operating costs.",
+  timed: true
+},
+{
+  text: "What is 'Design to Repair'? (2)",
+  options: [
+    "Replace worn parts",
+    "Buy new equipment more often",
+    "Make products easier to repair",
+    "Use disposable materials"
+  ],
+  correct: [0,2],
+  maxChoices: 4,
+  explanation: "Products should be designed so that damaged parts can be replaced instead of throwing everything away.",
+  timed: true
+},
+{
+  text: "What makes local democracy more representative? (2)",
+  options: [
+    "Higher salaries for CEOs",
+    "Financial support for elected officials",
+    "More diverse candidates",
+    "Fewer municipal councils"
+  ],
+  correct: [1,2],
+  maxChoices: 4,
+  explanation: "Better financial support helps people from all backgrounds become candidates, improving representation.",
+  timed: true
+},
+{
+  text: "Which initiatives are part of the sharing economy? (2)",
+  options: [
+    "Repair cafés",
+    "Libraries of Things",
+    "Shopping malls",
+    "Private storage units"
+  ],
+  correct: [0,1],
+  maxChoices: 4,
+  explanation: "Repair cafés and Libraries of Things help people share resources instead of buying new ones.",
+  timed: true
+},
+{
+  text: "What can people exchange in a time bank? (2)",
+  options: [
+    "Money",
+    "Hours of help",
+    "Skills",
+    "Cryptocurrency"
+  ],
+  correct: [1,2],
+  maxChoices: 4,
+  explanation: "Time banks allow people to exchange services and skills using time instead of money.",
+  timed: true
+}
 ];
 
 function calculateFinalScore() {
-  let score = 0;
+  let totalPoints = 0;
   const results = [];
   
   for (let i = 0; i < quizQuestions.length; i++) {
@@ -166,7 +277,10 @@ function calculateFinalScore() {
     const isCorrect = userAnswers.length === correctAnswers.length &&
       correctAnswers.every(idx => userAnswers.includes(idx));
     
-    if (isCorrect) score++;
+    // Calcul du score pour cette question
+    const questionScore = quizState.questionScores[i] || 0;
+    
+    totalPoints += questionScore;
     
     results.push({
       questionIndex: i,
@@ -175,11 +289,30 @@ function calculateFinalScore() {
       correctAnswers: correctAnswers,
       options: quizQuestions[i].options,
       isCorrect: isCorrect,
+      score: questionScore,
       explanation: quizQuestions[i].explanation
     });
   }
   
-  return { score, total: quizQuestions.length, results };
+  // Détermination de la ligue
+  let league = "Bronze";
+
+if (totalPoints >= 9000) {
+    league = "Challenger";
+}
+else if (totalPoints >= 7000) {
+    league = "Master";
+}
+else if (totalPoints >= 4500) {
+    league = "Platinium";
+}
+
+  return { 
+    totalPoints, 
+    totalQuestions: quizQuestions.length, 
+    results,
+    league
+  };
 }
 
 function nextQuestion() {
@@ -190,9 +323,10 @@ function nextQuestion() {
     const finalResults = calculateFinalScore();
     
     io.emit("quizFinished", {
-      score: finalResults.score,
-      total: finalResults.total,
-      results: finalResults.results
+      totalPoints: finalResults.totalPoints,
+      total: finalResults.totalQuestions,
+      results: finalResults.results,
+      league: finalResults.league
     });
     
     // Plus de timeout automatique – la réinitialisation se fait via endGame (clic sur "Retour au lobby")
@@ -211,7 +345,8 @@ function nextQuestion() {
     question: currentQuestion,
     totalQuestions: quizQuestions.length,
     questionNumber: quizState.currentQuestionIndex + 1,
-    teamAnswers: quizState.teamAnswers
+    teamAnswers: quizState.teamAnswers,
+    questionStartTime: quizState.questionStartTime
   });
   
   if (quizState.timerTimeout) {
@@ -292,9 +427,9 @@ io.on("connection", (socket) => {
     gameStarted = true;
 
     gameTimeout = setTimeout(() => {
-      console.log("⏰ Partie expirée après 45 minutes");
+      console.log("⏰ Partie expirée après 35 minutes");
       resetGame();
-    }, 45 * 60 * 1000);
+    }, 35 * 60 * 1000);
 
     // 1. Envoyer "gameStarted" aux joueurs ayant rejoint
     players.forEach(p => {
@@ -374,7 +509,9 @@ io.on("connection", (socket) => {
     quizState.currentQuestionIndex = 0;
     quizState.teamAnswers = [];
     quizState.allAnswers = [];
+    quizState.questionScores = [];
     quizState.timerTimeout = null;
+    quizState.questionStartTime = Date.now();
 
     socket.emit("allQuestions", quizQuestions);
 
@@ -385,7 +522,8 @@ io.on("connection", (socket) => {
         question: firstQuestion,
         totalQuestions: quizQuestions.length,
         questionNumber: 1,
-        teamAnswers: []
+        teamAnswers: [],
+        questionStartTime: Date.now()
     });
 
     quizState.timerTimeout = setTimeout(() => {
@@ -418,6 +556,32 @@ io.on("connection", (socket) => {
     console.log(`✅ Validation de la réponse pour la question ${quizState.currentQuestionIndex + 1} et passage à la suivante`);
 
     quizState.allAnswers[quizState.currentQuestionIndex] = [...quizState.teamAnswers];
+
+    const question = quizQuestions[quizState.currentQuestionIndex];
+
+    const isCorrect =
+        quizState.teamAnswers.length === question.correct.length &&
+        question.correct.every(i => quizState.teamAnswers.includes(i));
+
+    let score = 0;
+
+    if (isCorrect) {
+
+        if (question.timed) {
+
+            const elapsed = Date.now() - quizState.questionStartTime;
+            const remaining = Math.max(0, 30000 - elapsed);
+
+            score = 500 + Math.floor((remaining / 30000) * 500);
+
+        } else {
+
+            score = 1000;
+
+        }
+    }
+
+    quizState.questionScores[quizState.currentQuestionIndex] = score;
 
     if (quizState.timerTimeout) {
         clearTimeout(quizState.timerTimeout);

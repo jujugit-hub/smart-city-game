@@ -2,23 +2,26 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- permet de s'adapter aux appareils mobiles + le zoom de l'écran est mise à 100% de base   -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>smart-city-game-team20</title>
-    <link rel="stylesheet" href="css.css">  <!-- Lien vers le fichier CSS -->
-
+    <link rel="stylesheet" href="css.css">
 </head>
 <body>
-  <header><h1>WELCOME</h1></header>
+  <header><h1>ECO CITY</h1></header>
   <div class="timer-box accueil-button">
     <span id="compteur">--:--</span>
   </div>
   
-  <h1>BUILDINGS</h1>
+  <h1>CITY MAP</h1>
 
   <div id="grid"></div>
 
+  <!-- NOUVEAU BOUTON POUR FORCER LA FIN DU TIMER -->
+  <button id="forceQuizBtn" style="position: fixed; bottom: 20px; right: 20px; background: #10491150; border: none; border-radius: 50px; padding: 12px 20px; font-weight: bold; color: white; z-index: 100; cursor: pointer;">
+    END TIMER
+  </button>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
-</body> 
-
+</body>
 </html>

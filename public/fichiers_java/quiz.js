@@ -7,6 +7,7 @@ let timeLeft = 30;
 let timerInterval = null;
 let answerValidated = false;
 let teamAnswers = [];
+let questionStartTime = null;
 
 const questionCounterElem = document.getElementById("questionCounter");
 const questionTextElem = document.getElementById("questionText");
@@ -35,7 +36,7 @@ function updateTeamAnswers() {
 
 function setLimitMessage(limit) {
     if (limit) {
-        resultMessageDiv.innerHTML = '<p>⚠️ Only ${limit} option(s) can be selected</p>';
+        resultMessageDiv.innerHTML = `<p>⚠️ Only ${limit} option(s) can be selected</p>`;
     } else {
         resultMessageDiv.innerHTML = "";
     }
@@ -163,11 +164,31 @@ function showFinalCorrection(data) {
     if (timerInterval) clearInterval(timerInterval);
     
     let resultsHtml = `
-        <div style="padding: 20px; max-height: 80vh; overflow-y: auto;">
-            <h1 style="font-size: 36px; margin-bottom: 20px;">FINAL SCORE</h1>
-            <h2 style="font-size: 28px; margin-bottom: 30px;">${data.score} / ${data.total}</h2>
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-    `;
+    <div style="padding: 20px; max-height: 80vh; overflow-y: auto;">
+        <div style="font-size: 48px; font-weight: bold; color: #F9A620; margin: 10px 0;">
+            ${data.totalPoints} pts
+        </div>
+
+        <div style="font-size: 28px; margin-bottom: 20px;">
+            <img src="${getLeagueLogo(data.league)}"
+                 class="league-logo"
+                 alt="${data.league}">
+
+            <h2 class="league-title">${data.league}</h2>
+
+            <p class="league-message">
+                ${getLeagueMessage(data.league)}
+            </p>
+        </div>
+
+        <div style="text-align:center; margin:20px 0 30px;">
+            <button id="scrollToLobbyBtn" class="link-button">
+                <i>Don't forget to click "BACK TO LOBBY" before leaving!</i>
+            </button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+`;
     
     data.results.forEach((result, idx) => {
         const isCorrect = result.isCorrect;
@@ -176,6 +197,9 @@ function showFinalCorrection(data) {
                 <h3 style="margin-bottom: 15px;">
                     ${isCorrect ? '✅' : '❌'} Question ${idx + 1}: ${result.questionText}
                 </h3>
+                <div style="margin: 10px 0;">
+                    <strong style="color: #F9A620;">Score: ${result.score} pts</strong>
+                </div>
                 <div style="margin: 15px 0;">
                     <strong style="color: #F9A620;">Team's answer :</strong><br>
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
@@ -246,6 +270,52 @@ function showFinalCorrection(data) {
             socket.emit("endGame");
         });
     }
+    const scrollBtn = document.getElementById("scrollToLobbyBtn");
+
+    if (scrollBtn) {
+        scrollBtn.addEventListener("click", () => {
+            const lobbyBtn = document.getElementById("backToLobbyBtn");
+
+            if (lobbyBtn) {
+                lobbyBtn.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center"
+                });
+            }
+        });
+    }
+}
+
+function getLeagueLogo(league) {
+    switch (league) {
+        case "Challenger":
+            return "challengerLogo.png";
+        case "Master":
+            return "masterLogo.png";
+        case "Platinium":
+            return "platiniumLogo.png";
+        case "Bronze":
+            return "bronzeLogo.png";
+        default:
+            return "";
+    }
+}
+
+function getLeagueMessage(league) {
+    switch (league) {
+
+        case "Challenger":
+            return "<i>You've been promoted to the <strong>Challenger</strong> rank, just like Faker!</i>";
+
+        case "Master":
+            return "<i>You've been promoted to the <strong>Master</strong> rank. You're too good at the game, but cannot go pro...</i>";
+
+        case "Platinum":
+            return "<i>You've been promoted to the <strong>Platinum</strong> rank, just like one of this app's developers!</i>";
+
+        default:
+            return "<i>You've been promoted to the <strong>Bronze</strong> rank, just like one of this app's developers!</i>";
+    }
 }
 
 function onValidate() {
@@ -282,6 +352,7 @@ socket.on("nextQuestion", (data) => {
     currentIndex = data.index;
     currentQuestionNumber = data.questionNumber;
     teamAnswers = data.teamAnswers || [];
+    questionStartTime = data.questionStartTime || Date.now();
     displayCurrentQuestion();
 });
 

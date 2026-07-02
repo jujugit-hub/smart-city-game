@@ -63,9 +63,9 @@ function openEnigme(building) {
         </div>
       ` : ''}
 
-      <input type="text" id="answerInput" placeholder="Votre réponse...">
+      <input type="text" id="answerInput" placeholder="Your answer...">
 
-      <button id="validateBtn">Valider</button>
+      <button id="validateBtn">Confirm</button>
 
       <p id="result"></p>
     </div>
@@ -89,7 +89,7 @@ function openEnigme(building) {
   document.getElementById("validateBtn").onclick = () => {
     const value = document.getElementById("answerInput").value;
 
-    if (value.toLowerCase() === building.answer.toLowerCase()) {
+    if (value.trim().toLowerCase() === building.answer.trim().toLowerCase()) {
       socket.emit("unlockBuilding", building.id);
       
       if (hasAudio) {
@@ -155,6 +155,7 @@ socket.on("updatePlayers", (players) => {
 });
 
 socket.on("gameStarted", () => {
+  localStorage.removeItem("introSeen");
   // Seul un joueur ayant rejoint reçoit cet événement
   window.location.href = "accueil.html";
 });
@@ -309,9 +310,14 @@ if (startBtn && minutesInput) {
 }
 
 restaurerCompteRebours();
+if (window.location.pathname.includes("accueil.html")) {
+    window.addEventListener("load", () => {
+        ouvrirPopupIntro();
+    });
+}
 
 // --- Carrousel ---
-const sliders = document.querySelectorAll(".section-card");
+const sliders = document.querySelectorAll(".section-card, .carousel-card");
 
 sliders.forEach(slider => {
     const slides = slider.querySelectorAll(".slide");
@@ -391,3 +397,80 @@ function ouvrirPopupPret() {
         socket.emit("playerReady");
     };
 }
+
+function ouvrirPopupIntro() {
+    if (localStorage.getItem("introSeen") === "true") return;
+
+    // Ne pas réafficher si elle existe déjà
+    if (document.querySelector(".intro-modal")) return;
+
+    const modal = document.createElement("div");
+    modal.classList.add("modal", "intro-modal");
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h2>Welcome!</h2>
+
+            <p style="font-weight: normal;">
+                Ready to discover an alternative sustainable city, but not sure where to start?
+            </p>
+            <h3>🎯 Your mission</h3>
+
+            <p style="font-weight: normal;">
+                Solve the riddles to unlock each building.
+            </p>
+            <h3>🤝 Teamwork</h3>
+
+            <p style="font-weight: normal;">
+                The game is collaborative, so communicate with your teammates and avoid working on the same building.
+            </p>
+            <h3>🧠 Final challenge</h3>
+            <p style="font-weight: normal;">
+                Once the time is up, a final collaborative quiz will begin, so be sure to read all the information you discover carefully.
+            </p>
+            <p style="font-weight: bold; color:#F9A620;">
+                The timer is already running. Click "Start the Adventure" and begin exploring!
+            </p>
+
+            <button id="startGameBtn">
+                START THE ADVENTURE
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("startGameBtn").onclick = () => {
+      localStorage.setItem("introSeen", "true");
+        modal.remove();
+    };
+}
+
+// =============================================
+// BOUTON POUR FORCER LA FIN DU COMPTE À REBOURS
+// =============================================
+function finirCompteRebours() {
+    // 1. Arrêter le rafraîchissement du timer
+    if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+    }
+    // 2. Effacer la clé localStorage pour éviter une reprise
+    effacerStockage();
+    // 3. Mettre à jour l'affichage du compteur
+    if (compteurSpan) {
+        compteurSpan.innerText = "00:00";
+    }
+    // 4. Afficher la pop-up "Prêt pour le quiz"
+    ouvrirPopupPret();
+}
+
+// Écouteur sur le bouton (exécuté après le chargement du DOM)
+document.addEventListener("DOMContentLoaded", function() {
+    const forceBtn = document.getElementById("forceQuizBtn");
+    if (forceBtn) {
+        forceBtn.addEventListener("click", function() {
+            finirCompteRebours();
+        });
+    }
+});
