@@ -160,6 +160,21 @@ socket.on("gameStarted", () => {
   window.location.href = "accueil.html";
 });
 
+socket.on("startTimer", (data) => {
+  console.log("⏱ Timer serveur reçu :", data);
+
+  // synchronisation propre (important)
+  const serverStart = data.startTimestamp;
+  const now = Date.now();
+  const drift = now - serverStart;
+
+  const adjustedMinutes = data.durationMinutes - (drift / 60000);
+
+  const finalMinutes = Math.max(0, adjustedMinutes);
+
+  nouveauCompteRebours(finalMinutes);
+});
+
 socket.on("initBuildings", (buildings) => {
   render(buildings);
 });
@@ -273,6 +288,11 @@ function demarrerCompteRebours(timestampFin) {
 }
 
 function nouveauCompteRebours(minutes) {
+  const existing = getHeureFinStockee();
+
+  // empêche double lancement
+  if (existing && existing > Date.now()) return;
+
   const timestampFin = Date.now() + minutes * 60000;
   sauvegarderHeureFin(timestampFin);
   demarrerCompteRebours(timestampFin);
@@ -295,19 +315,6 @@ function restaurerCompteRebours() {
   }
 }
 
-const startBtn = document.getElementById('startBtn');
-const minutesInput = document.getElementById('minutesInput');
-
-if (startBtn && minutesInput) {
-  startBtn.addEventListener('click', () => {
-    const minutes = parseInt(minutesInput.value, 10);
-    if (isNaN(minutes) || minutes <= 0) {
-      alert("please enter a valid minute number");
-      return;
-    }
-    nouveauCompteRebours(minutes);
-  });
-}
 
 restaurerCompteRebours();
 if (window.location.pathname.includes("accueil.html")) {
@@ -383,7 +390,7 @@ function ouvrirPopupPret() {
         <div class="modal-content">
             <h2>Time is up!</h2>
             <p style="font-weight: normal;">
-                Please be ready for the quiz.
+                Please get ready for the quiz
             </p>
             <button id="readyBtn">
                 READY

@@ -27,6 +27,17 @@ let buildings = [
   { id: 9, name: "Housing", unlocked: false, enigme: "Can you lift me up ?", answer: "cooperative"}
 ];
 
+//MINUTEUR
+function getGameDurationMinutes(playerCount) {
+  if (playerCount <= 1) return 25;
+  if (playerCount === 2) return 15;
+  if (playerCount === 3) return 13;
+  if (playerCount === 4) return 12;
+  if (playerCount === 5) return 10;
+  if (playerCount === 6) return 8;
+  return 6;
+}
+
 // =====================================================================
 // ---------- Gestion des LEDs des bâtiments (ESP32) ----------
 // =====================================================================
@@ -426,10 +437,18 @@ io.on("connection", (socket) => {
 
     gameStarted = true;
 
+    const duration = getGameDurationMinutes(players.length);
+
+    io.emit("startTimer", {
+      durationMinutes: duration,
+      playerCount: players.length,
+      startTimestamp: Date.now()
+    });
+
     gameTimeout = setTimeout(() => {
-      console.log("⏰ Partie expirée après 35 minutes");
+      console.log("⏰ Partie expirée après 30 minutes");
       resetGame();
-    }, 35 * 60 * 1000);
+    }, 30 * 60 * 1000);
 
     // 1. Envoyer "gameStarted" aux joueurs ayant rejoint
     players.forEach(p => {
